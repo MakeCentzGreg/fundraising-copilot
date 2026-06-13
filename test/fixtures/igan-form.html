@@ -95,6 +95,12 @@
       <legend>Materials</legend>
       <label for="deck">Upload your pitch deck (PDF, max 25MB)</label>
       <input id="deck" name="deck" type="file" accept=".pdf,.ppt,.pptx" />
+
+      <!-- junk fields that must NOT be extracted -->
+      <!-- visible but label is only a symbol (like a decorative toggle) -->
+      <input type="text" aria-label="Δ" name="decorative" />
+      <!-- hidden tracking field -->
+      <input type="text" aria-label="Hidden tracking field" name="utm" style="display:none" />
     </fieldset>
 
     <button type="submit">Submit</button>
