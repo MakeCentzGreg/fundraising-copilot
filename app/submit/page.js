@@ -159,6 +159,7 @@ export default function Submit() {
         <div className="mt-6 flex justify-center gap-3">
           <button onClick={() => { setPhase('url'); setSession(null); setForm({ url: '', fund_name: '', fund_focus: '' }); setResult(null); }}
             className="rounded-xl bg-blue-700 px-5 py-2.5 font-semibold text-white hover:bg-blue-800">Submit another</button>
+          <a href="/submissions" className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold hover:bg-slate-100">View submissions</a>
           <a href="/" className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold hover:bg-slate-100">Back to home</a>
         </div>
       </div>
