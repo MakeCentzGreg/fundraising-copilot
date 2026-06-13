@@ -86,30 +86,72 @@ export default function Onboarding() {
   useEffect(() => {
     (async () => {
       const d = await loadProfile();
-      setPhase(d.hydration ? 'review' : 'upload');
+      // Step 1 links here with ?step=upload to reach the upload screen even when
+      // a profile already exists (to replace the report or add a deck). Step 2
+      // (no param) jumps straight to review once a profile is built.
+      const forceUpload = new URLSearchParams(window.location.search).get('step') === 'upload';
+      setPhase(forceUpload || !d.hydration ? 'upload' : 'review');
     })().catch(() => setPhase('upload'));
   }, []);
 
   async function handleParse(e) {
     e.preventDefault();
     setError(null);
-    if (!files.greg_report) {
+    const hasParse = !!data?.hydration;
+    const newReport = files.greg_report;
+    const deckFile = files.pitch_deck;
+    const memo = files.investor_memo;
+    const onePager = files.one_pager;
+
+    // The report is required only the first time; after that it's on file and
+    // re-uploading replaces it. A memo / one-pager are read together with the
+    // report, so they need a report (re)parse to take effect.
+    if (!newReport && !hasParse) {
       setError('Please choose your CEO Syndicate report PDF first.');
       return;
     }
+    if (!newReport && (memo || onePager)) {
+      setError('To add a memo or one-pager, re-upload your report too — they’re read together.');
+      return;
+    }
+    if (!newReport && !deckFile) {
+      // Nothing to upload — just continue to review.
+      if (hasParse) setPhase('review');
+      return;
+    }
+
+    const reparsing = !!newReport;
+    setParseMsg(reparsing ? PARSE_MESSAGES[0] : 'Saving your pitch deck…');
     setPhase('parsing');
-    let i = 0;
-    msgTimer.current = setInterval(() => {
-      i = (i + 1) % PARSE_MESSAGES.length;
-      setParseMsg(PARSE_MESSAGES[i]);
-    }, 12000);
+    if (reparsing) {
+      let i = 0;
+      msgTimer.current = setInterval(() => {
+        i = (i + 1) % PARSE_MESSAGES.length;
+        setParseMsg(PARSE_MESSAGES[i]);
+      }, 12000);
+    }
     try {
-      const fd = new FormData();
-      for (const [type, file] of Object.entries(files)) fd.append(type, file);
-      const r = await fetch('/api/parse', { method: 'POST', body: fd });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? 'Parsing failed');
+      // Deck goes to the deck library (supports multiple versions + default).
+      if (deckFile) {
+        const dfd = new FormData();
+        dfd.append('deck', deckFile);
+        dfd.append('label', deckFile.name.replace(/\.[^.]+$/, ''));
+        const dr = await fetch('/api/deck', { method: 'POST', body: dfd });
+        const dd = await dr.json();
+        if (!dr.ok) throw new Error(dd.error ?? 'Deck upload failed');
+      }
+      // Report (+ memo / one-pager) re-runs the intelligence pipeline.
+      if (newReport) {
+        const fd = new FormData();
+        fd.append('greg_report', newReport);
+        if (memo) fd.append('investor_memo', memo);
+        if (onePager) fd.append('one_pager', onePager);
+        const r = await fetch('/api/parse', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? 'Parsing failed');
+      }
       await loadProfile();
+      setFiles({});
       setPhase('review');
     } catch (err) {
       setError(err.message);
@@ -178,48 +220,76 @@ export default function Onboarding() {
   if (phase === 'loading') return <p className="text-slate-500">Loading…</p>;
 
   if (phase === 'upload') {
+    const hasParse = !!data?.hydration;
+    const fileRow = (type, label, { accept = 'application/pdf', hint = null } = {}) => (
+      <label className="block rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold">
+            {label} <span className="text-sm font-normal text-slate-500">(optional)</span>
+          </span>
+          {files[type] && <span className="text-sm font-medium text-emerald-800">✓ {files[type].name}</span>}
+        </div>
+        {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+        <input
+          type="file"
+          accept={accept}
+          className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-800"
+          onChange={(e) => { const f = e.target.files?.[0]; setFiles((p) => ({ ...p, [type]: f })); }}
+        />
+      </label>
+    );
+
     return (
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold">Step 1 — Upload your documents</h1>
+        <h1 className="text-2xl font-bold">Step 1 — Your documents</h1>
         <p className="mt-2 text-slate-600">
-          Your CEO Syndicate report is required. The others are optional but make
-          your answers stronger.
+          {hasParse
+            ? 'Your report is already on file. Replace it to re-extract your profile, or add your pitch deck below.'
+            : 'Your CEO Syndicate report is required. The others are optional but make your answers stronger.'}
         </p>
         {error && <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-900">⚠ {error}</p>}
         <form onSubmit={handleParse} className="mt-6 space-y-4">
-          {[
-            { type: 'greg_report', label: 'CEO Syndicate report (Greg Report)', required: true },
-            { type: 'pitch_deck', label: 'Pitch deck', required: false },
-            { type: 'investor_memo', label: 'Investor memo', required: false },
-            { type: 'one_pager', label: 'One-pager', required: false },
-          ].map((a) => (
-            <label key={a.type} className="block rounded-xl border border-slate-200 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">
-                  {a.label}{' '}
-                  {a.required ? (
-                    <span className="text-sm font-semibold text-red-700">(required)</span>
-                  ) : (
-                    <span className="text-sm font-normal text-slate-500">(optional)</span>
-                  )}
-                </span>
-                {files[a.type] && <span className="text-sm font-medium text-emerald-800">✓ {files[a.type].name}</span>}
-              </div>
-              <input
-                type="file"
-                accept="application/pdf"
-                className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-800"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  setFiles((p) => ({ ...p, [a.type]: f }));
-                }}
-              />
-            </label>
-          ))}
+          {/* CEO Syndicate report */}
+          <label className="block rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold">
+                CEO Syndicate report (Greg Report){' '}
+                {hasParse
+                  ? <span className="text-sm font-semibold text-emerald-800">✓ on file</span>
+                  : <span className="text-sm font-semibold text-red-700">(required)</span>}
+              </span>
+              {files.greg_report && <span className="text-sm font-medium text-emerald-800">✓ {files.greg_report.name}</span>}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {hasParse ? 'Choose a file only to replace it and rebuild your profile.' : 'Your profile is built from this report.'}
+            </p>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-800"
+              onChange={(e) => { const f = e.target.files?.[0]; setFiles((p) => ({ ...p, greg_report: f })); }}
+            />
+          </label>
+
+          {/* Pitch deck → deck library */}
+          {fileRow('pitch_deck', 'Pitch deck', { accept: '.pdf,.ppt,.pptx', hint: 'Attached to VC forms. Saved to your deck library — you can keep more than one on the Decks page.' })}
+
+          {/* Read together with the report on a (re)parse */}
+          {fileRow('investor_memo', 'Investor memo', { hint: 'Read together with your report when (re)building your profile.' })}
+          {fileRow('one_pager', 'One-pager', { hint: 'Read together with your report when (re)building your profile.' })}
+
           <button type="submit" className="w-full rounded-xl bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800">
-            Build my profile →
+            {hasParse ? 'Save changes →' : 'Build my profile →'}
           </button>
-          <p className="text-center text-xs text-slate-500">Takes 2–3 minutes. PDFs only for now.</p>
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>PDFs (deck also PPT/PPTX). Rebuilding the profile takes 2–3 minutes.</span>
+            {hasParse && (
+              <button type="button" onClick={() => setPhase('review')} className="font-semibold text-blue-700 hover:underline">
+                Skip to review →
+              </button>
+            )}
+          </div>
+          <a href="/deck" className="block text-center text-xs font-semibold text-blue-700 hover:underline">📎 Manage your pitch decks</a>
         </form>
       </div>
     );

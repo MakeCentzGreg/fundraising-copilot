@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 const STEPS = [
-  { n: 1, title: 'Upload your report', desc: 'CEO Syndicate report, plus pitch deck or memo if you have them.', href: '/onboarding', key: 'upload' },
+  { n: 1, title: 'Upload your report', desc: 'CEO Syndicate report, plus pitch deck or memo if you have them.', href: '/onboarding?step=upload', key: 'upload' },
   { n: 2, title: 'Review your profile', desc: 'Check what the AI extracted, fill the gaps, pick your voice.', href: '/onboarding', key: 'profile' },
   { n: 3, title: 'Paste a VC form link', desc: 'The tool reads every question on the form.', href: '/submit', key: 'form' },
   { n: 4, title: 'Review the answers', desc: 'Approve, edit, or skip every answer before anything is sent.', href: '/submit', key: 'answers' },
