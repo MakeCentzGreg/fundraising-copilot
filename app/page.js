@@ -1,101 +1,93 @@
-import Image from "next/image";
+'use client';
+// Home — the five-step pipeline with live status.
+import { useEffect, useState } from 'react';
+
+const STEPS = [
+  { n: 1, title: 'Upload your report', desc: 'CEO Syndicate report, plus pitch deck or memo if you have them.', href: '/onboarding', key: 'upload' },
+  { n: 2, title: 'Review your profile', desc: 'Check what the AI extracted, fill the gaps, pick your voice.', href: '/onboarding', key: 'profile' },
+  { n: 3, title: 'Paste a VC form link', desc: 'The tool reads every question on the form.', href: null, key: 'form' },
+  { n: 4, title: 'Review the answers', desc: 'Approve, edit, or skip every answer before anything is sent.', href: null, key: 'answers' },
+  { n: 5, title: 'Fill the form', desc: 'Practice mode only — nothing is submitted to a real VC.', href: null, key: 'submit' },
+];
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [status, setStatus] = useState(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  useEffect(() => {
+    fetch('/api/status').then((r) => r.json()).then(setStatus).catch(() => {});
+  }, []);
+
+  function stepState(key) {
+    if (!status) return { label: 'Loading…', done: false };
+    switch (key) {
+      case 'upload':
+        return status.report_uploaded
+          ? { label: 'Done — report parsed', done: true }
+          : { label: 'Start here', done: false };
+      case 'profile': {
+        if (!status.report_uploaded) return { label: 'Waiting on step 1', done: false };
+        // A pitch deck is collected at upload (step 1), not on the review
+        // screen, so it doesn't gate profile completion here.
+        const missing = status.missing_required.filter((m) => m.field !== 'pitch_decks');
+        const open = missing.length + status.review_pending;
+        return open === 0 && status.voice_set
+          ? { label: 'Done — profile complete', done: true }
+          : { label: `${open} item${open === 1 ? '' : 's'} to finish`, done: false };
+      }
+      case 'form':
+      case 'answers':
+      case 'submit':
+        return { label: 'Coming next — being built', done: false };
+      default:
+        return { label: '', done: false };
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold tracking-tight">Apply to VCs 10x faster</h1>
+      <p className="mt-2 max-w-2xl text-slate-600">
+        Your CEO Syndicate report already contains the answers investors ask for.
+        This tool turns it into completed VC application forms — and you approve
+        every word before anything goes out.
+      </p>
+
+      <ol className="mt-10 space-y-4">
+        {STEPS.map((s) => {
+          const st = stepState(s.key);
+          const clickable = s.href && (s.key === 'upload' || status?.report_uploaded);
+          return (
+            <li key={s.n}>
+              <a
+                href={clickable ? s.href : undefined}
+                className={`block rounded-xl border bg-white p-5 transition ${
+                  clickable ? 'border-blue-300 shadow-sm hover:border-blue-500 hover:shadow' : 'border-slate-200 opacity-80'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold ${
+                      st.done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {st.done ? '✓' : s.n}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold">{s.title}</div>
+                    <div className="text-sm text-slate-600">{s.desc}</div>
+                  </div>
+                  <div className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    st.done ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-slate-100 text-slate-700'
+                  }`}>
+                    {st.done ? '✓ ' : ''}{st.label}
+                  </div>
+                </div>
+              </a>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
