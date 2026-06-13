@@ -135,12 +135,28 @@ export default function Onboarding() {
     try {
       const updates = [];
       for (const [key, e] of Object.entries(edits)) {
+        // founders is derived below from the single contact fields, not pushed raw
+        if (key === 'founders') continue;
         if (e.value !== '' || data?.profile?.[key]) updates.push({ key, value: e.value, source: e.source });
       }
       for (const key of Object.keys(approved)) {
         if (!(key in edits)) updates.push({ key, value: data.profile[key]?.value ?? '', source: 'confirmed' });
       }
       if (voice) updates.push({ key: 'voice_preference', value: voice, source: 'manual' });
+
+      // Single source of truth for contact info: Founder #1 is built from the
+      // "About you" name/email/LinkedIn plus the title/bio entered below.
+      const finalVal = (k) => (k in edits ? edits[k].value : (data?.profile?.[k]?.value ?? ''));
+      const existingFounder = (Array.isArray(data?.profile?.founders?.value) ? data.profile.founders.value[0] : null) ?? {};
+      const founderEdit = edits.founders?.value?.[0] ?? {};
+      const founder0 = {
+        name: finalVal('preferred_name'),
+        title: founderEdit.title ?? existingFounder.title ?? '',
+        email: finalVal('email'),
+        linkedin: finalVal('linkedin_url'),
+        bio: founderEdit.bio ?? existingFounder.bio ?? '',
+      };
+      updates.push({ key: 'founders', value: [founder0], source: 'manual' });
       const r = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -353,22 +369,24 @@ export default function Onboarding() {
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="font-semibold">Founder #1 (you)</div>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            {['name', 'title', 'email', 'linkedin'].map((f) => (
-              <label key={f} className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{f}</span>
-                <input
-                  type="text"
-                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
-                  value={(edits.founders?.value?.[0]?.[f]) ?? founder[f] ?? ''}
-                  onChange={(ev) => {
-                    const updated = { ...founder, ...(edits.founders?.value?.[0] ?? {}), [f]: ev.target.value };
-                    setEdit('founders', [updated], 'manual');
-                  }}
-                />
-              </label>
-            ))}
+          <div className="font-semibold">Your role &amp; bio</div>
+          <p className="mt-1 text-xs text-slate-500">
+            Your name, email, and LinkedIn above are used as your founder details — no need to re-enter them.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Title</span>
+              <input
+                type="text"
+                className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                placeholder="e.g. Founder &amp; CEO"
+                value={(edits.founders?.value?.[0]?.title) ?? founder.title ?? ''}
+                onChange={(ev) => {
+                  const updated = { ...founder, ...(edits.founders?.value?.[0] ?? {}), title: ev.target.value };
+                  setEdit('founders', [updated], 'manual');
+                }}
+              />
+            </label>
           </div>
           <label className="mt-3 block">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Short bio</span>
