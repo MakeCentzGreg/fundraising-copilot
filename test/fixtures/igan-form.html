@@ -1,0 +1,99 @@
+<!doctype html>
+<!--
+  LOCAL TEST FIXTURE — a stand-in for the iGan Partners "Submit your pitch deck"
+  intake form. Used to exercise domExtractor.js and the fill/upload path WITHOUT
+  ever touching a real VC form (Greg's standing rule). Plain HTML = the
+  extractor's "html" fallback platform. Field mix is intentional: linked labels,
+  a wrapping <label>, aria-label, placeholder-only, a dropdown, a file input,
+  required fields, and a couple of novel questions that should classify as
+  'unknown' and route to the Answer Composer.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>iGan Partners — Submit Your Pitch Deck</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; }
+    fieldset { border: 1px solid #ccc; margin-bottom: 1.5rem; padding: 1rem; }
+    label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
+    input, textarea, select { width: 100%; padding: 0.4rem; box-sizing: border-box; }
+    .help { font-weight: 400; color: #555; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Submit Your Pitch Deck</h1>
+  <p>Tell us about your company. We review every submission.</p>
+
+  <form id="vc-form" action="/thank-you" method="post" enctype="multipart/form-data">
+
+    <fieldset>
+      <legend>Company</legend>
+
+      <label for="company">Company name</label>
+      <input id="company" name="company" type="text" required />
+
+      <label for="website">Company website</label>
+      <input id="website" name="website" type="url" placeholder="https://" />
+
+      <label for="stage">What stage are you?</label>
+      <select id="stage" name="stage" required>
+        <option value="">Select one</option>
+        <option>Pre-seed</option>
+        <option>Seed</option>
+        <option>Series A</option>
+        <option>Series B+</option>
+      </select>
+
+      <!-- wrapping-label pattern (no for=) -->
+      <label>One-line description
+        <span class="help">What you do, in a sentence.</span>
+        <input name="oneliner" type="text" />
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Founder</legend>
+
+      <label for="fname">Founder name</label>
+      <input id="fname" name="fname" type="text" required />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required />
+
+      <!-- aria-label only -->
+      <input name="linkedin" type="url" aria-label="LinkedIn profile URL" placeholder="linkedin.com/in/..." />
+    </fieldset>
+
+    <fieldset>
+      <legend>The Opportunity</legend>
+
+      <label for="problem">What problem are you solving?</label>
+      <textarea id="problem" name="problem" rows="3" required></textarea>
+
+      <label for="why">Why are you the right team to build this?</label>
+      <textarea id="why" name="why" rows="3"></textarea>
+
+      <label for="traction">Tell us about your traction</label>
+      <textarea id="traction" name="traction" rows="3"></textarea>
+
+      <label for="raise">How much are you raising?</label>
+      <input id="raise" name="raise" type="text" placeholder="$" />
+
+      <!-- novel / open-ended — should classify unknown -> Answer Composer -->
+      <label for="unfair">What is your unfair advantage that compounds over time?</label>
+      <textarea id="unfair" name="unfair" rows="3"></textarea>
+
+      <label for="why_igan">Why iGan Partners specifically?</label>
+      <textarea id="why_igan" name="why_igan" rows="3"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Materials</legend>
+      <label for="deck">Upload your pitch deck (PDF, max 25MB)</label>
+      <input id="deck" name="deck" type="file" accept=".pdf,.ppt,.pptx" />
+    </fieldset>
+
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>
