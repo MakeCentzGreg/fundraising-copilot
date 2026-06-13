@@ -212,6 +212,27 @@ export default function Submit() {
 }
 
 function FieldRow({ item, kind, meta, value, status, onChange, onApprove, onSkip }) {
+  // File rows are informational — they show which deck will attach (or a prompt
+  // to upload one), never an editable field.
+  if (kind === 'file') {
+    return (
+      <div className={`rounded-xl border ${meta.border} bg-white p-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold">{item.field_label}</span>
+          <span className="text-xs font-medium text-slate-500">{item.key}</span>
+        </div>
+        <p className={`mt-1 text-sm ${item.asset_available ? 'text-slate-700' : 'text-amber-900'}`}>
+          {item.asset_available ? `📎 ${item.value}` : `⚠ ${item.value}`}
+        </p>
+        {!item.asset_available && (
+          <a href="/deck" className="mt-2 inline-block rounded-lg bg-blue-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-800">
+            Upload a deck →
+          </a>
+        )}
+      </div>
+    );
+  }
+
   // Auto-filled rows collapse; everything else stays open for inspection.
   const collapsible = kind === 'auto';
   const body = (

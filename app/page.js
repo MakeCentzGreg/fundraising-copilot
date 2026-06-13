@@ -100,6 +100,10 @@ export default function Home() {
           );
         })}
       </ol>
+
+      <div className="mt-6 flex items-center gap-4 text-sm">
+        <a href="/deck" className="font-semibold text-blue-700 hover:underline">📎 Manage your pitch decks</a>
+      </div>
     </div>
   );
 }
