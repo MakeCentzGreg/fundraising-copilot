@@ -43,18 +43,18 @@ export default function Submit() {
   const [values, setValues] = useState({});     // selector -> working value
   const [status, setStatus] = useState({});     // selector -> 'approved' | 'edited' | 'skipped'
   const [result, setResult] = useState(null);
+  const [duplicate, setDuplicate] = useState(null);
 
-  async function handleExtract(e) {
-    e.preventDefault();
+  async function runExtract(force) {
     setError(null);
-    if (!form.url) { setError('Paste the VC form URL first.'); return; }
     setPhase('extracting');
     try {
       const r = await fetch('/api/submit/extract', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, force }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'Extraction failed');
+      if (d.duplicate) { setDuplicate(d.duplicate); setPhase('duplicate'); return; }
       setSession(d);
       const v = {}, st = {};
       for (const it of d.review) {
@@ -65,6 +65,12 @@ export default function Submit() {
       setValues(v); setStatus(st);
       setPhase('review');
     } catch (err) { setError(err.message); setPhase('url'); }
+  }
+
+  function handleExtract(e) {
+    e.preventDefault();
+    if (!form.url) { setError('Paste the VC form URL first.'); return; }
+    runExtract(false);
   }
 
   function setVal(sel, val) {
@@ -141,6 +147,34 @@ export default function Submit() {
         <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-blue-700" aria-hidden="true" />
         <h2 className="mt-6 text-xl font-bold">{phase === 'extracting' ? 'Reading the form and drafting answers…' : 'Filling and submitting…'}</h2>
         <p className="mt-2 text-sm text-slate-500">This can take a minute. Leave this page open.</p>
+      </div>
+    );
+  }
+
+  if (phase === 'duplicate') {
+    const when = duplicate?.submitted_at ? new Date(duplicate.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+    const statusLabel = (duplicate?.status ?? 'submitted').replace(/_/g, ' ');
+    return (
+      <div className="mx-auto max-w-md py-16">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-6">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-amber-900">
+            <span aria-hidden="true">⚠</span> You’ve applied here before
+          </h1>
+          <p className="mt-3 text-amber-900">
+            You already submitted to <strong>{duplicate?.vc_name || duplicate?.domain}</strong> on{' '}
+            <strong>{when}</strong> — current status: <strong>{statusLabel}</strong>.
+          </p>
+          <p className="mt-2 text-sm text-amber-800">Submitting again will create a second application. Continue only if that’s what you want.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button onClick={() => runExtract(true)} className="rounded-xl bg-amber-700 px-5 py-2.5 font-semibold text-white hover:bg-amber-800">
+              Continue anyway
+            </button>
+            <button onClick={() => { setPhase('url'); setDuplicate(null); }} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold hover:bg-slate-100">
+              Cancel
+            </button>
+            <a href="/submissions" className="self-center text-sm font-semibold text-amber-900 underline">View your submissions</a>
+          </div>
+        </div>
       </div>
     );
   }
