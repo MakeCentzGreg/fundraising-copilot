@@ -5,10 +5,16 @@ import { useEffect, useState } from 'react';
 const STEPS = [
   { n: 1, title: 'Upload your report', desc: 'CEO Syndicate report, plus pitch deck or memo if you have them.', href: '/onboarding', key: 'upload' },
   { n: 2, title: 'Review your profile', desc: 'Check what the AI extracted, fill the gaps, pick your voice.', href: '/onboarding', key: 'profile' },
-  { n: 3, title: 'Paste a VC form link', desc: 'The tool reads every question on the form.', href: null, key: 'form' },
-  { n: 4, title: 'Review the answers', desc: 'Approve, edit, or skip every answer before anything is sent.', href: null, key: 'answers' },
-  { n: 5, title: 'Fill the form', desc: 'Practice mode only — nothing is submitted to a real VC.', href: null, key: 'submit' },
+  { n: 3, title: 'Paste a VC form link', desc: 'The tool reads every question on the form.', href: '/submit', key: 'form' },
+  { n: 4, title: 'Review the answers', desc: 'Approve, edit, or skip every answer before anything is sent.', href: '/submit', key: 'answers' },
+  { n: 5, title: 'Fill the form', desc: 'Practice mode only — nothing is submitted to a real VC.', href: '/submit', key: 'submit' },
 ];
+
+function profileReady(status) {
+  if (!status?.report_uploaded || !status.voice_set) return false;
+  const missing = status.missing_required.filter((m) => m.field !== 'pitch_decks');
+  return missing.length + status.review_pending === 0;
+}
 
 export default function Home() {
   const [status, setStatus] = useState(null);
@@ -34,10 +40,15 @@ export default function Home() {
           ? { label: 'Done — profile complete', done: true }
           : { label: `${open} item${open === 1 ? '' : 's'} to finish`, done: false };
       }
-      case 'form':
+      case 'form': {
+        return profileReady(status)
+          ? { label: 'Ready — paste a form', done: false }
+          : { label: 'Finish your profile first', done: false };
+      }
       case 'answers':
+        return { label: 'Part of step 3', done: false };
       case 'submit':
-        return { label: 'Coming next — being built', done: false };
+        return { label: 'Practice mode — never sent to real VCs', done: false };
       default:
         return { label: '', done: false };
     }
@@ -55,7 +66,8 @@ export default function Home() {
       <ol className="mt-10 space-y-4">
         {STEPS.map((s) => {
           const st = stepState(s.key);
-          const clickable = s.href && (s.key === 'upload' || status?.report_uploaded);
+          const needsProfile = ['form', 'answers', 'submit'].includes(s.key);
+          const clickable = s.href && (s.key === 'upload' || (needsProfile ? profileReady(status) : status?.report_uploaded));
           return (
             <li key={s.n}>
               <a
